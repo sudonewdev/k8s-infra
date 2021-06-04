@@ -3,67 +3,66 @@
   pre_tasks:
    - name: disable firewall service
      service:
-        name: firewalld
-        state: stopped
-        enabled: false
-     when: ansible_distribution == 'CentoOS'
-   - name: disable firewall service
-     service:
         name: ufw
         state: stopped
         enabled: false
      when: ansible_distribution == 'Ubuntu'
+
    - name: Disable SWAP 
      shell: |
        swapoff -a
+
    - name: Disable SWAP in fstab 
      lineinfile:
        path: /etc/fstab
        regexp: 'swap'
        state: absent
-   - name: install Docker in CentOS
-     yum:
-       name: docker
-       state: present
-       update_cache: true
-     when: ansible_distribution == 'CentOS'
+
+   - name: disable SELinux
+     command: setenforce 0
+     ignore_errors: yes
+
+   - name: disable SELinux on reboot
+     selinux:
+       state: disabled
+
+   - name: ensure net.bridge.bridge-nf-call-ip6tables is set to 1
+     sysctl:
+      name: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+      state: present
+
+   - name: ensure net.bridge.bridge-nf-call-iptables is set to 1
+     sysctl:
+      name: net.bridge.bridge-nf-call-iptables
+      value: 1
+      state: present
+
    - name: Add Docker GPG apt key (Ubuntu)
      apt_key:
          url: https://download.docker.com/linux/ubuntu/gpg
          state: present
      when: ansible_distribution == 'Ubuntu'
+
    - name: Add Docker repo (Ubuntu)
      apt_repository:
          repo: deb https://download.docker.com/linux/ubuntu bionic stable
          state: present
      when: ansible_distribution == 'Ubuntu'
+
    - name: install docker in Ubuntu
      apt:
        name: docker-ce
        state: present
        update_cache: true
      when: ansible_distribution == 'Ubuntu'
+
    - name: start Docker
      service:
        name: docker
        state: started
        enabled: true
-   - name: disable SELinux
-     command: setenforce 0
-     ignore_errors: yes
-   - name: disable SELinux on reboot
-     selinux:
-       state: disabled
-   - name: ensure net.bridge.bridge-nf-call-ip6tables is set to 1
-     sysctl:
-      name: net.bridge.bridge-nf-call-ip6tables
-      value: 1
-      state: present
-   - name: ensure net.bridge.bridge-nf-call-iptables is set to 1
-     sysctl:
-      name: net.bridge.bridge-nf-call-iptables
-      value: 1
-      state: present
+
    - name: add Kubernetes YUM repository
      yum_repository:
       name: Kubernetes
@@ -71,15 +70,18 @@
       baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
       gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
       gpgcheck: yes
+
    - name: install kubelet
      yum:
         name: kubelet-1.14.0
         state: present
         update_cache: true
+
    - name: install kubeadm
      yum:
         name: kubeadm-1.14.0
         state: present
+
    - name: start kubelet
      service:
        name: kubelet
@@ -116,4 +118,3 @@
             owner: root
             group: root
             mode: 0440
-
